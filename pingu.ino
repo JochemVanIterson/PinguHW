@@ -70,6 +70,9 @@ bool hasAaied = false;
 unsigned long firstWurgTime = 0;
 bool hasWurged = false;
 
+// -------------------------------------------------------------------------- //
+// --------------------------------- Setup ---------------------------------- //
+// -------------------------------------------------------------------------- //
 void setup() {
     Serial.begin(9600);
     Serial.println("Started...");
@@ -79,8 +82,11 @@ void setup() {
     AudioMemory(12);
 }
 
+// -------------------------------------------------------------------------- //
+// ---------------------------------- Loop ---------------------------------- //
+// -------------------------------------------------------------------------- //
 void loop() {
-    if(dood)return;
+    if(dood)return; // Do nothing when dead
     getVariables(true);
     ledHandler();
 
@@ -95,6 +101,9 @@ void loop() {
     }
 }
 
+// -------------------------------------------------------------------------- //
+// ----------------------------- Get variables ------------------------------ //
+// -------------------------------------------------------------------------- //
 void getVariables(bool print){
   micValueGetter(print);
   pressureValueGetter(print);
@@ -135,18 +144,9 @@ void buttonValueGetter(bool print){
   }
 }
 
-void ledHandler(){
-  if(happiness>40)digitalWrite(ledPin, HIGH);
-  //FIXME
-
-  // else if( millis() % (happiness*10.) == 0){ // 500 ms
-  //   if(ledIsOn = !ledIsOn){
-  //     digitalWrite(ledPin, HIGH);
-  //   } else {
-  //     digitalWrite(ledPin, LOW);
-  //   }
-  // }
-}
+// -------------------------------------------------------------------------- //
+// ------------------------ Variable changed handler ------------------------ //
+// -------------------------------------------------------------------------- //
 void handleButtonChanged(){
   if(!buttonState){
     lastEatenTime = millis();
@@ -159,13 +159,35 @@ void handlePressureChanged(){
     firstAaiTime = 0;
   }
 }
+
+// -------------------------------------------------------------------------- //
+// ----------------------------- Timed actions ------------------------------ //
+// -------------------------------------------------------------------------- //
+void ledHandler(){
+  if(happiness>40){
+    digitalWrite(ledPin, HIGH);
+    return;
+  }
+  //FIXME
+
+  // else if( millis() % (happiness*10.) == 0){ // 500 ms
+  //   if(ledIsOn = !ledIsOn){
+  //     digitalWrite(ledPin, HIGH);
+  //   } else {
+  //     digitalWrite(ledPin, LOW);
+  //   }
+  // }
+}
+
+// -------------------------------------------------------------------------- //
+// -------------------------------- Actions --------------------------------- //
+// -------------------------------------------------------------------------- //
 void sterf(){
   ledState = false;
   digitalWrite(ledPin, LOW);
   //TODO: Dood geluid
   dood = true;
 }
-
 void setHappiness(int newValue){
   if(newValue<0||newValue>100)return;
   happiness = newValue;
