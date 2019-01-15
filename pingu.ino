@@ -20,9 +20,15 @@ mic boven de 2000 binnen 1 minuut
 #include <ADC.h>
 #include <math.h>
 
-#define BUFFERSIZE 8
-#define MIN_OFFSET 5
-#define MAX_OFFSET 25
+// -------------------------------------------------------------------------- //
+// ------------------------------ Audio files ------------------------------- //
+// -------------------------------------------------------------------------- //
+#include "sounds/AudioSampleEten_nika_1.cpp"
+#include "sounds/AudioSampleHonger_nika_2.cpp"
+#include "sounds/AudioSampleAaien_nika_1.cpp"
+AudioPlayMemory    sound0;
+
+#define BUFFERSIZE 6000
 
 // -------------------------------------------------------------------------- //
 // ---------------------------------- Pins ---------------------------------- //
@@ -47,9 +53,8 @@ AudioConnection        patchCord1(adc1, peak1);
 // ---------------------------------- DACs ---------------------------------- //
 // -------------------------------------------------------------------------- //
 // --------------------- Sine --------------------- //
-AudioSynthWaveformSine   sine1;          //xy=156,145
 AudioOutputAnalog        dac1;           //xy=396,136
-AudioConnection          patchCord2(sine1, dac1);
+AudioConnection          patchCord2(sound0, dac1);
 
 // -------------------------------------------------------------------------- //
 // ------------------------------ Input Values ------------------------------ //
@@ -57,18 +62,21 @@ AudioConnection          patchCord2(sine1, dac1);
 double pressureValue, micValue;
 bool ledIsOn, buttonState = false;
 int audioBuffer[BUFFERSIZE] = {0};
+int bufferCursor = 0;
 int ledState = 1; // 0:Off, 1:On, 2:Blink
 
 // -------------------------------------------------------------------------- //
 // ------------------------------ Life states ------------------------------- //
 // -------------------------------------------------------------------------- //
-double happiness = 100; // 0 <= happiness <= 100
+double happiness = 100.0; // 0 <= happiness <= 100
 bool dood = false;
 unsigned long lastEatenTime = 0; // Button -> millis()
 unsigned long firstAaiTime  = 0;
 bool hasAaied = false;
 unsigned long firstWurgTime = 0;
 bool hasWurged = false;
+unsigned long lastMillis = 0;
+bool hasHardGeluid = false;
 
 // -------------------------------------------------------------------------- //
 // --------------------------------- Setup ---------------------------------- //
@@ -89,15 +97,18 @@ void loop() {
     if(dood)return; // Do nothing when dead
     getVariables(true);
     ledHandler();
+    if(lastMillis!=millis()){
+      if ((millis() - lastEatenTime) == 10000){
+        setHappiness(happiness*0.9);
+        sound0.play(AudioSampleHonger_nika_2);
+        lastEatenTime = millis();
+      }
 
-    if (millis() - lastEatenTime == 2000){
-      setHappiness(happiness*0.9);
-      //HONGER!
-    }
-
-    if (millis() - lastEatenTime == 60000 /*|| lawaaiCounter >= 5 || wurgCounter >= 10000 */){
-      sterf();
-      return;
+      if (millis() - lastEatenTime == 60000 /*|| lawaaiCounter >= 5 || wurgCounter >= 10000 */){
+        sterf();
+        return;
+      }
+      lastMillis = millis();
     }
 }
 
@@ -113,8 +124,13 @@ void getVariables(bool print){
 void micValueGetter(bool print){
   if (peak1.available()) {
     double newValue = peak1.read()*4096.0;
+
+    audioBuffer[bufferCursor] = newValue;
+    bufferCursor = (bufferCursor+1)%BUFFERSIZE;
+
     if(newValue==micValue)return;
     micValue = newValue;
+    handleMicChanged();
     if(print){
       Serial.print("Mic: ");
       Serial.println(micValue);
@@ -149,14 +165,39 @@ void buttonValueGetter(bool print){
 // -------------------------------------------------------------------------- //
 void handleButtonChanged(){
   if(!buttonState){
-    lastEatenTime = millis();
+    // TODO only every 5 seconds
+    // if ((millis() - lastEatenTime) >= 5000){
+      lastEatenTime = millis();
+      sound0.play(AudioSampleEten_nika_1);
+    // }
   }
 }
 void handlePressureChanged(){
   if(pressureValue>=0.01 && pressureValue<=0.4){
     if(firstAaiTime==0) firstAaiTime = millis();
+    if((firstAaiTime - millis())>= 5000 && !hasAaied){
+      hasAaied = true;
+      setHappiness(happiness*1.1);
+      sound0.play(AudioSampleAaien_nika_1);
+    }
+  } else if(pressureValue>=1.){
+    if(firstWurgTime==0) firstWurgTime = millis();
+    if((firstWurgTime - millis())>= 5000){
+      sterf();
+    }
   } else {
-    firstAaiTime = 0;
+    hasAaied = false;
+    firstAaiTime = millis();
+    firstWurgTime = millis();
+  }
+}
+void handleMicChanged(){
+  double average = averageVolume();
+  if(hasHardGeluid && average>=2000.0){
+    hasHardGeluid = true;
+    setHappiness(happiness*0.9);
+  } else if(average<1000.0){
+    hasHardGeluid = false;
   }
 }
 
@@ -185,12 +226,20 @@ void ledHandler(){
 void sterf(){
   ledState = false;
   digitalWrite(ledPin, LOW);
+  Serial.println("DOOOOOOOOOOOOOOOD");
   //TODO: Dood geluid
   dood = true;
 }
-void setHappiness(int newValue){
-  if(newValue<0||newValue>100)return;
+void setHappiness(double newValue){
+  if(newValue<0.||newValue>100.)return;
   happiness = newValue;
   Serial.print("Happiness: ");
   Serial.println(happiness);
+}
+double averageVolume(){
+  long value = 0;
+  for(int walker = 0; walker< BUFFERSIZE; walker++){
+    value+=audioBuffer[walker];
+  }
+  return value/BUFFERSIZE;
 }
