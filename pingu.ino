@@ -16,6 +16,8 @@ wurgen  langer dan 5 sec  1
 mic boven de 2000 binnen 1 minuut
 */
 
+// #define DEBUG
+
 #include <Audio.h>
 #include <ADC.h>
 #include <math.h>
@@ -27,7 +29,6 @@ mic boven de 2000 binnen 1 minuut
 #include "sounds/AudioSamplePurr_eva_1.cpp"
 
 #include "sounds/AudioSampleAu_nika_1.cpp"
-#include "sounds/AudioSampleAu_eva_1.cpp"
 
 #include "sounds/AudioSampleEten_nika_1.cpp"
 #include "sounds/AudioSampleNomnomnom_eva_1.cpp"
@@ -38,6 +39,7 @@ mic boven de 2000 binnen 1 minuut
 #include "sounds/AudioSampleHuilen_nika_2.cpp"
 #include "sounds/AudioSampleHuilen_eva_1.cpp"
 
+#include "sounds/AudioSampleAndsoitbegins_eva.cpp"
 #include "sounds/AudioSampleDood.cpp"
 AudioPlayMemory    sound0;
 
@@ -104,6 +106,8 @@ void setup() {
     randomSeed(adc->adc1->analogRead(A20));
 
     AudioMemory(12);
+
+    sound0.play(AudioSampleAndsoitbegins_eva);
 }
 
 // -------------------------------------------------------------------------- //
@@ -114,7 +118,7 @@ void loop() {
     getVariables(true);
     if(lastMillis!=millis()){
       ledHandler();
-      if ((millis() - lastEatenTime) == 10000){
+      if ((millis() - lastEatenTime) % 10000 == 0){
         setHappiness(happiness*0.9);
 
         if(happiness>40){
@@ -163,10 +167,12 @@ void micValueGetter(bool print){
     micValue = newValue;
     handleMicChanged();
     if(newValue==micValue)return;
+    #ifdef DEBUG
     if(print){
       Serial.print("Mic: ");
       Serial.println(micValue);
     }
+    #endif
   }
 }
 void pressureValueGetter(bool print){
@@ -176,20 +182,24 @@ void pressureValueGetter(bool print){
   if( fabs(pressureValue-newValue)<=0.01 )return;
   pressureValue = newValue;
   handlePressureChanged();
+  #ifdef DEBUG
   if(print){
     Serial.print("Pressure: ");
     Serial.println(pressureValue, 10);
   }
+  #endif
 }
 void buttonValueGetter(bool print){
   bool newValue = !digitalRead(buttonPin);
   if(buttonState==newValue)return;
   buttonState = newValue;
   handleButtonChanged();
+  #ifdef DEBUG
   if(print){
     Serial.print("Button: ");
     Serial.println(buttonState?"On":"Off");
   }
+  #endif
 }
 
 // -------------------------------------------------------------------------- //
@@ -198,7 +208,6 @@ void buttonValueGetter(bool print){
 void handleButtonChanged(){
   if(!buttonState){
     if ((millis() - lastEatenTime) >= 5000){
-      Serial.println("handleButtonChanged()");
       lastEatenTime = millis();
       setHappiness(happiness*1.05);
       int randomVal = random(2);
@@ -212,14 +221,10 @@ void handlePressureChanged(){
     if((millis() - firstAaiTime)>= 3000 && !hasAaied){
       hasAaied = true;
       setHappiness(happiness*1.1);
-      int randomVal = random(2);
-      if(randomVal==0) sound0.play(AudioSampleAaien_nika_2);
-      else if(randomVal==1) sound0.play(AudioSamplePurr_eva_1);
+      sound0.play(AudioSamplePurr_eva_1);
     }
   } else if(pressureValue==1.){
-    int randomVal = random(2);
-    if(randomVal==0) sound0.play(AudioSampleAu_nika_1);
-    else if(randomVal==1) sound0.play(AudioSampleAu_eva_1);
+    sound0.play(AudioSampleAu_nika_1);
   } else {
     hasAaied = false;
     firstAaiTime = millis();
