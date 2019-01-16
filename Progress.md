@@ -10,7 +10,5 @@ DONE:
 - Huilen (happiness < 40, elke keer dat happiness omlaag)
 - Hard geluid (boven de 0.5 binnen 1 minuut -> happiness-10)
 - Knipperen
-
-Programming TODO:
 - handleButtonChanged() only every 5 seconds
 - handlePressureChanged() only every n seconds

@@ -81,7 +81,7 @@ int ledState = 1; // 0:Off, 1:On, 2:Blink
 // -------------------------------------------------------------------------- //
 // ------------------------------ Life states ------------------------------- //
 // -------------------------------------------------------------------------- //
-double happiness = 40.0; // 0 <= happiness <= 100
+double happiness = 100.0; // 0 <= happiness <= 100
 bool dood = false;
 unsigned long lastEatenTime = 0; // Button -> millis()
 unsigned long firstAaiTime  = 0;
@@ -116,6 +116,7 @@ void loop() {
       ledHandler();
       if ((millis() - lastEatenTime) == 10000){
         setHappiness(happiness*0.9);
+
         if(happiness>40){
           int randomVal = random(2);
           if(randomVal==0) sound0.play(AudioSampleHonger_nika_1);
@@ -129,11 +130,13 @@ void loop() {
           else if(randomVal==4) sound0.play(AudioSampleHuilen_nika_2);
           else if(randomVal==5) sound0.play(AudioSampleHuilen_nika_2);
         }
-
-        lastEatenTime = millis();
       }
 
-      if (millis() - lastEatenTime == 60000 /*|| lawaaiCounter >= 5 || wurgCounter >= 10000 */){
+      if((millis()-lastEatenTime) >= 60000){
+        sterf();
+        return;
+      }
+      if(pressureValue==1. && ((millis()-firstWurgTime) >= 5000)){
         sterf();
         return;
       }
@@ -157,9 +160,9 @@ void micValueGetter(bool print){
     audioBuffer[bufferCursor] = newValue;
     bufferCursor = (bufferCursor+1)%BUFFERSIZE;
 
-    if(newValue==micValue)return;
     micValue = newValue;
     handleMicChanged();
+    if(newValue==micValue)return;
     if(print){
       Serial.print("Mic: ");
       Serial.println(micValue);
@@ -194,35 +197,29 @@ void buttonValueGetter(bool print){
 // -------------------------------------------------------------------------- //
 void handleButtonChanged(){
   if(!buttonState){
-    // TODO only every 5 seconds
-    // if ((millis() - lastEatenTime) >= 5000){
+    if ((millis() - lastEatenTime) >= 5000){
+      Serial.println("handleButtonChanged()");
       lastEatenTime = millis();
+      setHappiness(happiness*1.05);
       int randomVal = random(2);
       if(randomVal==0) sound0.play(AudioSampleEten_nika_1);
       else if(randomVal==1) sound0.play(AudioSampleNomnomnom_eva_1);
-    // }
+    }
   }
 }
 void handlePressureChanged(){
   if(pressureValue>=0.01 && pressureValue<=0.4){
-    if(firstAaiTime==0) firstAaiTime = millis();
-    if((firstAaiTime - millis())>= 5000 && !hasAaied){
+    if((millis() - firstAaiTime)>= 3000 && !hasAaied){
       hasAaied = true;
       setHappiness(happiness*1.1);
       int randomVal = random(2);
       if(randomVal==0) sound0.play(AudioSampleAaien_nika_2);
       else if(randomVal==1) sound0.play(AudioSamplePurr_eva_1);
     }
-  } else if(pressureValue>=1.){
-    if(firstWurgTime==0) firstWurgTime = millis();
-
+  } else if(pressureValue==1.){
     int randomVal = random(2);
     if(randomVal==0) sound0.play(AudioSampleAu_nika_1);
     else if(randomVal==1) sound0.play(AudioSampleAu_eva_1);
-
-    if((firstWurgTime - millis())>= 5000){
-      sterf();
-    }
   } else {
     hasAaied = false;
     firstAaiTime = millis();
@@ -282,20 +279,6 @@ double averageVolume(){
   double value = 0;
   for(int walker = 0; walker < BUFFERSIZE; walker++){
     value+=audioBuffer[walker];
-  }
-  if(bufferCursor==0){
-    Serial.print("Average: ");
-    Serial.print(value);
-    Serial.print(", ");
-    Serial.println(value/BUFFERSIZE);
-
-    int bufferPrintCursor = 0;
-    while (bufferPrintCursor<BUFFERSIZE){
-      Serial.print(audioBuffer[bufferPrintCursor]);
-      Serial.print(", ");
-      bufferPrintCursor++;
-    }
-    Serial.println("");
   }
   return value/BUFFERSIZE;
 }
