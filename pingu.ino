@@ -23,12 +23,25 @@ mic boven de 2000 binnen 1 minuut
 // -------------------------------------------------------------------------- //
 // ------------------------------ Audio files ------------------------------- //
 // -------------------------------------------------------------------------- //
+#include "sounds/AudioSampleAaien_nika_2.cpp"
+#include "sounds/AudioSamplePurr_eva_1.cpp"
+
+#include "sounds/AudioSampleAu_nika_1.cpp"
+#include "sounds/AudioSampleAu_eva_1.cpp"
+
 #include "sounds/AudioSampleEten_nika_1.cpp"
-#include "sounds/AudioSampleHonger_nika_2.cpp"
-#include "sounds/AudioSampleAaien_nika_1.cpp"
+#include "sounds/AudioSampleNomnomnom_eva_1.cpp"
+
+#include "sounds/AudioSampleHonger_nika_1.cpp"
+#include "sounds/AudioSampleHonger_eva_1.cpp"
+
+#include "sounds/AudioSampleHuilen_nika_2.cpp"
+#include "sounds/AudioSampleHuilen_eva_1.cpp"
+
+#include "sounds/AudioSampleDood.cpp"
 AudioPlayMemory    sound0;
 
-#define BUFFERSIZE 6000
+#define BUFFERSIZE 100
 
 // -------------------------------------------------------------------------- //
 // ---------------------------------- Pins ---------------------------------- //
@@ -45,9 +58,9 @@ const int pressurePin = A3;
 ADC *adc = new ADC();
 
 // --------------------- Mic ---------------------- //
-AudioInputAnalog       adc1(micPin);
-AudioAnalyzePeak       peak1;
-AudioConnection        patchCord1(adc1, peak1);
+AudioInputAnalog         adc1(micPin);
+AudioAnalyzePeak         peak1;
+AudioConnection          patchCord1(adc1, peak1);
 
 // -------------------------------------------------------------------------- //
 // ---------------------------------- DACs ---------------------------------- //
@@ -61,14 +74,14 @@ AudioConnection          patchCord2(sound0, dac1);
 // -------------------------------------------------------------------------- //
 double pressureValue, micValue;
 bool ledIsOn, buttonState = false;
-int audioBuffer[BUFFERSIZE] = {0};
+double audioBuffer[BUFFERSIZE] = {0};
 int bufferCursor = 0;
 int ledState = 1; // 0:Off, 1:On, 2:Blink
 
 // -------------------------------------------------------------------------- //
 // ------------------------------ Life states ------------------------------- //
 // -------------------------------------------------------------------------- //
-double happiness = 100.0; // 0 <= happiness <= 100
+double happiness = 40.0; // 0 <= happiness <= 100
 bool dood = false;
 unsigned long lastEatenTime = 0; // Button -> millis()
 unsigned long firstAaiTime  = 0;
@@ -86,6 +99,9 @@ void setup() {
     Serial.println("Started...");
 
     pinMode(buttonPin, INPUT_PULLUP);
+    pinMode(ledPin, OUTPUT);
+
+    randomSeed(adc->adc1->analogRead(A20));
 
     AudioMemory(12);
 }
@@ -96,11 +112,24 @@ void setup() {
 void loop() {
     if(dood)return; // Do nothing when dead
     getVariables(true);
-    ledHandler();
     if(lastMillis!=millis()){
+      ledHandler();
       if ((millis() - lastEatenTime) == 10000){
         setHappiness(happiness*0.9);
-        sound0.play(AudioSampleHonger_nika_2);
+        if(happiness>40){
+          int randomVal = random(2);
+          if(randomVal==0) sound0.play(AudioSampleHonger_nika_1);
+          else if(randomVal==1) sound0.play(AudioSampleHonger_eva_1);
+        } else {
+          int randomVal = random(6);
+          if(randomVal==0) sound0.play(AudioSampleHonger_nika_1);
+          else if(randomVal==1) sound0.play(AudioSampleHonger_eva_1);
+          else if(randomVal==2) sound0.play(AudioSampleHuilen_eva_1);
+          else if(randomVal==3) sound0.play(AudioSampleHuilen_nika_2);
+          else if(randomVal==4) sound0.play(AudioSampleHuilen_nika_2);
+          else if(randomVal==5) sound0.play(AudioSampleHuilen_nika_2);
+        }
+
         lastEatenTime = millis();
       }
 
@@ -123,7 +152,7 @@ void getVariables(bool print){
 
 void micValueGetter(bool print){
   if (peak1.available()) {
-    double newValue = peak1.read()*4096.0;
+    double newValue = peak1.read();
 
     audioBuffer[bufferCursor] = newValue;
     bufferCursor = (bufferCursor+1)%BUFFERSIZE;
@@ -168,7 +197,9 @@ void handleButtonChanged(){
     // TODO only every 5 seconds
     // if ((millis() - lastEatenTime) >= 5000){
       lastEatenTime = millis();
-      sound0.play(AudioSampleEten_nika_1);
+      int randomVal = random(2);
+      if(randomVal==0) sound0.play(AudioSampleEten_nika_1);
+      else if(randomVal==1) sound0.play(AudioSampleNomnomnom_eva_1);
     // }
   }
 }
@@ -178,10 +209,17 @@ void handlePressureChanged(){
     if((firstAaiTime - millis())>= 5000 && !hasAaied){
       hasAaied = true;
       setHappiness(happiness*1.1);
-      sound0.play(AudioSampleAaien_nika_1);
+      int randomVal = random(2);
+      if(randomVal==0) sound0.play(AudioSampleAaien_nika_2);
+      else if(randomVal==1) sound0.play(AudioSamplePurr_eva_1);
     }
   } else if(pressureValue>=1.){
     if(firstWurgTime==0) firstWurgTime = millis();
+
+    int randomVal = random(2);
+    if(randomVal==0) sound0.play(AudioSampleAu_nika_1);
+    else if(randomVal==1) sound0.play(AudioSampleAu_eva_1);
+
     if((firstWurgTime - millis())>= 5000){
       sterf();
     }
@@ -193,10 +231,14 @@ void handlePressureChanged(){
 }
 void handleMicChanged(){
   double average = averageVolume();
-  if(hasHardGeluid && average>=2000.0){
+  if(!hasHardGeluid && average>=0.5){
     hasHardGeluid = true;
     setHappiness(happiness*0.9);
-  } else if(average<1000.0){
+    Serial.println("HARD GELUID");
+    int randomVal = random(2);
+    if(randomVal==0) sound0.play(AudioSampleAu_nika_1);
+    else if(randomVal==1) sound0.play(AudioSampleHuilen_eva_1);
+  } else if(hasHardGeluid && average<0.2){
     hasHardGeluid = false;
   }
 }
@@ -209,15 +251,15 @@ void ledHandler(){
     digitalWrite(ledPin, HIGH);
     return;
   }
-  //FIXME
 
-  // else if( millis() % (happiness*10.) == 0){ // 500 ms
-  //   if(ledIsOn = !ledIsOn){
-  //     digitalWrite(ledPin, HIGH);
-  //   } else {
-  //     digitalWrite(ledPin, LOW);
-  //   }
-  // }
+  if( (millis() % (450 - (int)happiness*10)) == 0){
+    if(ledIsOn){
+      digitalWrite(ledPin, HIGH);
+    } else {
+      digitalWrite(ledPin, LOW);
+    }
+    ledIsOn = !ledIsOn;
+  }
 }
 
 // -------------------------------------------------------------------------- //
@@ -227,7 +269,7 @@ void sterf(){
   ledState = false;
   digitalWrite(ledPin, LOW);
   Serial.println("DOOOOOOOOOOOOOOOD");
-  //TODO: Dood geluid
+  sound0.play(AudioSampleDood);
   dood = true;
 }
 void setHappiness(double newValue){
@@ -237,9 +279,23 @@ void setHappiness(double newValue){
   Serial.println(happiness);
 }
 double averageVolume(){
-  long value = 0;
-  for(int walker = 0; walker< BUFFERSIZE; walker++){
+  double value = 0;
+  for(int walker = 0; walker < BUFFERSIZE; walker++){
     value+=audioBuffer[walker];
+  }
+  if(bufferCursor==0){
+    Serial.print("Average: ");
+    Serial.print(value);
+    Serial.print(", ");
+    Serial.println(value/BUFFERSIZE);
+
+    int bufferPrintCursor = 0;
+    while (bufferPrintCursor<BUFFERSIZE){
+      Serial.print(audioBuffer[bufferPrintCursor]);
+      Serial.print(", ");
+      bufferPrintCursor++;
+    }
+    Serial.println("");
   }
   return value/BUFFERSIZE;
 }
