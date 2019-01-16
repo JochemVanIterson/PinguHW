@@ -12,3 +12,6 @@ DONE:
 - Knipperen
 - handleButtonChanged() only every 5 seconds
 - handlePressureChanged() only every n seconds
+
+TODO:
+- Audio normalisation
